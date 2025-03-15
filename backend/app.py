@@ -105,8 +105,8 @@ def init_db():
 app = FastAPI(title="Backend API")
 
 origins = [
-    "https://thunderous-mermaid-3a3523.netlify.app",
-    "http://thunderous-mermaid-3a3523.netlify.app",
+    "https://spiffy-tiramisu-40934b.netlify.app",
+    "http://spiffy-tiramisu-40934b.netlify.app",
     "https://t.me",
     "http://localhost:5173",
     "http://localhost:3000",
@@ -124,7 +124,7 @@ app.add_middleware(
     expose_headers=["*"]
 )
 BOT_TOKEN = '7892645481:AAESpSKDbi8yOOeuxSUOe1WkELhiZaWvieI'
-WEBAPP_URL = "https://thunderous-mermaid-3a3523.netlify.app"
+WEBAPP_URL = "https://spiffy-tiramisu-40934b.netlify.app"
 bot = Bot(token=BOT_TOKEN, parse_mode='HTML')
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)

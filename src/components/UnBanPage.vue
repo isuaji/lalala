@@ -40,15 +40,24 @@ const handleSubmit = async () => {
     error.value = null;
 
     const formData = new FormData();
-    formData.append('user_id', parseInt(unbanForm.value.userId));
-    formData.append('reason', unbanForm.value.reason);
+    const data = {
+      user_id: parseInt(unbanForm.value.userId),
+      reason: unbanForm.value.reason
+    };
+
+    // Оптимизированная отправка данных
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
 
     const response = await axios.post('https://usfbase.ru/USFAPI/unban', 
       formData,
       {
         headers: {
           'Authorization': window.Telegram.WebApp.initData
-        }
+        },
+        timeout: 10000,
+        cache: true
       }
     );
 

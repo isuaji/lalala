@@ -171,13 +171,15 @@ const loadUserData = async () => {
       return;
     }
 
-    // Выполняем запросы параллельно
+    // Используем Promise.all для параллельных запросов
     const [adminCheckResponse, banCheckResponse] = await Promise.all([
       axios.get(`https://usfbase.ru/USFAPI/check_admin/${user.id}`, {
-        headers: { 'Authorization': initData }
+        headers: { 'Authorization': initData },
+        cache: true
       }),
       axios.get(`https://usfbase.ru/USFAPI/check_ban/${user.id}`, {
-        headers: { 'Authorization': initData }
+        headers: { 'Authorization': initData },
+        cache: true
       })
     ]);
 
@@ -187,7 +189,7 @@ const loadUserData = async () => {
       return;
     }
 
-    // Устанавливаем данные пользователя
+    // Оптимизируем обновление состояния
     userInfo.value = {
       id: user.id,
       name: user.first_name,
@@ -211,7 +213,10 @@ const searchBan = async () => {
   try {
     const response = await axios.get(
       `https://usfbase.ru/USFAPI/public/ban/${searchUserId.value}`,
-      { cache: true } // Включаем кэширование для повторных запросов
+      { 
+        cache: true,
+        timeout: 5000
+      }
     );
     searchResult.value = response.data;
   } catch (error) {
@@ -220,7 +225,7 @@ const searchBan = async () => {
   }
 };
 
-// Добавляем debounce для поиска
+// Оптимизируем поиск бана с debounce
 const debouncedSearch = (() => {
   let timeout;
   return (value) => {

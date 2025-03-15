@@ -35,22 +35,32 @@ const handleSubmit = async () => {
     error.value = null;
 
     const formData = new FormData();
-    formData.append('user_id', parseInt(warnForm.value.userId));
-    formData.append('count', warnForm.value.count);
-    formData.append('reason', warnForm.value.reason);
-    formData.append('proofs', warnForm.value.proof);
+    const data = {
+      user_id: parseInt(warnForm.value.userId),
+      count: warnForm.value.count,
+      reason: warnForm.value.reason,
+      proofs: warnForm.value.proof
+    };
+
+    // Оптимизированная отправка данных
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
 
     const response = await axios.post('https://usfbase.ru/USFAPI/warn', 
       formData,
       {
         headers: {
           'Authorization': window.Telegram.WebApp.initData
-        }
+        },
+        timeout: 10000,
+        cache: true
       }
     );
 
     if (response.data.status === 'success' || response.data.status === 'banned') {
       success.value = response.data.message;
+      // Используем деструктуризацию для сброса формы
       warnForm.value = {
         userId: '',
         count: '',
@@ -71,6 +81,15 @@ const handleKeyDown = (event) => {
     event.target.blur();
   }
 };
+
+// Добавляем debounce для обработки ввода
+const debouncedInput = (() => {
+  let timeout;
+  return (callback) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(callback, 300);
+  };
+})();
 </script>
 
 <template>

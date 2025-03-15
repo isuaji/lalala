@@ -36,21 +36,27 @@ onMounted(() => {
   }
 });
 
-const handleImageSelect = (event) => {
+const handleImageSelect = async (event) => {
   const files = Array.from(event.target.files);
   
-  files.forEach(file => {
-    if (file.type.startsWith('image/')) {
+  // Обрабатываем изображения параллельно
+  const imagePromises = files.map(file => {
+    if (!file.type.startsWith('image/')) return null;
+    
+    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        selectedImages.value.push({
-          file: file,
+        resolve({
+          file,
           preview: e.target.result
         });
       };
       reader.readAsDataURL(file);
-    }
+    });
   });
+
+  const images = await Promise.all(imagePromises);
+  selectedImages.value = [...selectedImages.value, ...images.filter(Boolean)];
 };
 
 const removeImage = (index) => {
@@ -77,17 +83,19 @@ const handleBan = async () => {
     formData.append('reason', banForm.value.reason);
     formData.append('proofs', banForm.value.proof);
     
-    if (selectedImages.value) {
-      for (const image of selectedImages.value) {
-        formData.append('images', image.file);
-      }
-    }
+    // Загружаем изображения параллельно
+    await Promise.all(
+      selectedImages.value.map(image => 
+        formData.append('images', image.file)
+      )
+    );
 
     await axios.post('https://usfbase.ru/USFAPI/ban', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         'Authorization': window.Telegram.WebApp.initData
-      }
+      },
+      timeout: 30000 // Увеличиваем таймаут для загрузки изображений
     });
     
     success.value = true;

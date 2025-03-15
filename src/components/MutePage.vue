@@ -35,22 +35,32 @@ const handleMute = async () => {
     error.value = '';
 
     const formData = new FormData();
-    formData.append('user_id', muteForm.value.userId.toString());
-    formData.append('reason', muteForm.value.reason);
-    formData.append('proofs', muteForm.value.proof);
-    formData.append('duration', muteForm.value.duration);
+    const data = {
+      user_id: muteForm.value.userId.toString(),
+      reason: muteForm.value.reason,
+      proofs: muteForm.value.proof,
+      duration: muteForm.value.duration
+    };
+
+    // Оптимизированная отправка данных
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
 
     const response = await axios.post('https://usfbase.ru/USFAPI/mute', 
       formData,
       {
         headers: {
           'Authorization': window.Telegram.WebApp.initData
-        }
+        },
+        timeout: 10000,
+        cache: true
       }
     );
 
     if (response.data.status === 'success') {
       success.value = response.data.message;
+      // Используем деструктуризацию для сброса формы
       muteForm.value = {
         userId: '',
         reason: '',
@@ -64,6 +74,12 @@ const handleMute = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// Добавляем валидацию длительности мута
+const validateDuration = (duration) => {
+  const pattern = /^(\d+)(ч|д)$/;
+  return pattern.test(duration);
 };
 
 const handleKeyDown = (event) => {

@@ -117,17 +117,24 @@ const fetchBans = async () => {
     const response = await axios.get('https://usfbase.ru/USFAPI/bans', {
       headers: {
         'Authorization': window.Telegram.WebApp.initData
-      }
+      },
+      cache: true,
+      timeout: 10000
     });
-    bans.value = response.data.map(ban => ({
-      ...ban,
-      images: ban.images?.map(img => {
-        if (img.startsWith('http')) {
-          return img;
-        }
-        return `data:image/jpeg;base64,${img}`;
-      }) || []
-    }));
+
+    const processedBans = await Promise.all(
+      response.data.map(async ban => ({
+        ...ban,
+        images: await Promise.all(
+          (ban.images || []).map(async img => {
+            if (img.startsWith('http')) return img;
+            return `data:image/jpeg;base64,${img}`;
+          })
+        )
+      }))
+    );
+
+    bans.value = processedBans;
   } catch (e) {
     console.error('Error fetching bans:', e);
     error.value = e.response?.data?.detail || 'Ошибка при получении списка банов';
@@ -135,6 +142,16 @@ const fetchBans = async () => {
     loading.value = false;
   }
 };
+
+const debouncedFilter = (() => {
+  let timeout;
+  return (query) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      searchQuery.value = query;
+    }, 300);
+  };
+})();
 </script>
 
 <style scoped>
