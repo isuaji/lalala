@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 import os
 import logging
 import sqlite3
@@ -87,6 +87,15 @@ def init_db():
                 count INTEGER NOT NULL,
                 warning_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (admin_id) REFERENCES admins (user_id)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS groups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER NOT NULL UNIQUE,
+                title TEXT NOT NULL,
+                username TEXT,
+                added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         conn.commit()
@@ -1368,6 +1377,150 @@ async def warn_user(
             conn.close()
     except Exception as e:
         logging.error(f"Ошибка при выдаче предупреждения: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/USFAPI/groups")
+async def get_groups(authorization: str = Header(None)):
+    try:
+        admin_id = verify_webapp_and_admin(authorization)
+        
+        conn = get_db()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT group_id FROM groups")
+            groups = cursor.fetchall()
+            
+            group_list = []
+            for group in groups:
+                group_id = group[0]
+                try:
+                    chat = await bot.get_chat(group_id)
+                    members_count = await bot.get_chat_members_count(group_id)
+                    
+                    group_data = {
+                        "id": group_id,
+                        "title": chat.title,
+                        "username": chat.username,
+                        "members_count": members_count,
+                        "photo": None
+                    }
+                    
+                    if chat.photo:
+                        file_info = await bot.get_file(chat.photo.big_file_id)
+                        group_data["photo"] = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+                    
+                    group_list.append(group_data)
+                except Exception as e:
+                    logging.error(f"Ошибка при получении информации о группе {group_id}: {e}")
+            
+            return group_list
+        finally:
+            conn.close()
+    except Exception as e:
+        logging.error(f"Ошибка при получении списка групп: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/USFAPI/groups/add")
+async def add_group(
+    request: Request,
+    group_id: int = Form(...),
+    authorization: str = Header(None)
+):
+    try:
+        admin_id = verify_webapp_and_admin(authorization)
+        
+        # Проверяем права админа
+        conn = get_db()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT points FROM admins WHERE user_id = ?", (admin_id,))
+            admin_data = cursor.fetchone()
+            if not admin_data or admin_data[0] < 90:
+                raise HTTPException(status_code=403, detail="Недостаточно прав для управления группами")
+            
+            # Проверяем, является ли бот администратором группы
+            try:
+                chat = await bot.get_chat(group_id)
+                bot_member = await bot.get_chat_member(group_id, (await bot.get_me()).id)
+                
+                if bot_member.status not in ['administrator', 'creator']:
+                    raise HTTPException(status_code=400, detail="Бот должен быть администратором группы")
+                
+                # Добавляем группу в БД
+                cursor.execute(
+                    "INSERT INTO groups (group_id, title, username) VALUES (?, ?, ?)",
+                    (group_id, chat.title, chat.username)
+                )
+                conn.commit()
+                
+                await log_admin_action(
+                    admin_id=admin_id,
+                    action_type="group_add",
+                    target_id=group_id,
+                    details=f"Добавлена группа: {chat.title}"
+                )
+                
+                return {
+                    "status": "success",
+                    "message": f"Группа {chat.title} успешно добавлена"
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=400, detail="Не удалось получить информацию о группе. Проверьте ID и права бота")
+                
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logging.error(f"Ошибка при добавлении группы: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/USFAPI/groups/{group_id}")
+async def remove_group(
+    request: Request,
+    group_id: int,
+    authorization: str = Header(None)
+):
+    try:
+        admin_id = verify_webapp_and_admin(authorization)
+        
+        # Проверяем права админа
+        conn = get_db()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT points FROM admins WHERE user_id = ?", (admin_id,))
+            admin_data = cursor.fetchone()
+            if not admin_data or admin_data[0] < 90:
+                raise HTTPException(status_code=403, detail="Недостаточно прав для управления группами")
+            
+            # Получаем информацию о группе перед удалением
+            cursor.execute("SELECT title FROM groups WHERE group_id = ?", (group_id,))
+            group_data = cursor.fetchone()
+            
+            if not group_data:
+                raise HTTPException(status_code=404, detail="Группа не найдена")
+            
+            # Удаляем группу
+            cursor.execute("DELETE FROM groups WHERE group_id = ?", (group_id,))
+            conn.commit()
+            
+            await log_admin_action(
+                admin_id=admin_id,
+                action_type="group_remove",
+                target_id=group_id,
+                details=f"Удалена группа: {group_data[0]}"
+            )
+            
+            return {
+                "status": "success",
+                "message": f"Группа успешно удалена"
+            }
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logging.error(f"Ошибка при удалении группы: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

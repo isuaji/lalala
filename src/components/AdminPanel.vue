@@ -121,10 +121,10 @@ const adminActions = [
     icon: '⚠️'
   },
   {
-    id: 'stats',
-    title: 'Статистика',
-    description: 'Анализ действий',
-    icon: '📊'
+    id: 'groups',
+    title: 'Управление группами',
+    description: 'Группы и каналы',
+    icon: '👥'
   }
 ];
 
@@ -140,6 +140,8 @@ const handleAction = (actionId) => {
     router.push({ name: 'warn' });
   } else if (actionId === 'banlist') {
     router.push('/admin/banlist');
+  } else if (actionId === 'groups') {
+    router.push('/admin/groups');
   } else if (actionId === 'back') {
     router.back();
   }

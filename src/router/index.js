@@ -8,6 +8,7 @@ import WarnPage from '../components/WarnPage.vue';
 import BanList from '../components/BanList.vue';
 import AdminList from '../components/AdminList.vue';
 import LogsPage from '../components/LogsPage.vue';
+import GroupsList from '../components/GroupsList.vue'
 
 const routes = [
   {
@@ -62,6 +63,11 @@ const routes = [
     name: 'logs',
     component: LogsPage,
     meta: { requiresAuth: true, requiresRank: 70 }
+  },
+  {
+    path: '/admin/groups',
+    name: 'groups',
+    component: GroupsList
   }
 ];
 
