@@ -42,7 +42,12 @@
               class="image-container"
               @click="openImage(image)"
             >
-              <img :src="image" :alt="`Доказательство ${index + 1}`" class="ban-image">
+              <img 
+                :src="image" 
+                :alt="`Доказательство ${index + 1}`" 
+                class="ban-image"
+                @error="$event.target.style.display = 'none'"
+              >
             </div>
           </div>
         </div>
@@ -114,7 +119,15 @@ const fetchBans = async () => {
         'Authorization': window.Telegram.WebApp.initData
       }
     });
-    bans.value = response.data;
+    bans.value = response.data.map(ban => ({
+      ...ban,
+      images: ban.images?.map(img => {
+        if (img.startsWith('http')) {
+          return img;
+        }
+        return `data:image/jpeg;base64,${img}`;
+      }) || []
+    }));
   } catch (e) {
     console.error('Error fetching bans:', e);
     error.value = e.response?.data?.detail || 'Ошибка при получении списка банов';
@@ -215,16 +228,22 @@ const fetchBans = async () => {
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s ease;
-}
-
-.image-container:hover {
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
 .ban-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 8px;
+}
+
+.image-container:hover {
+  transform: scale(1.05);
 }
 
 .image-modal {

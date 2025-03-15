@@ -1,7 +1,7 @@
 <template>
-  <div class="user-page">
+  <div class="user-page" @click="hideKeyboard">
     <div class="content">
-      <h1 class="title">USF - Больше чем свалка</h1>
+      <h1 class="title">??? - Больше чем свалка</h1>
       
       <div class="user-info">
         <div class="avatar-container">
@@ -33,9 +33,14 @@
               v-model="searchUserId" 
               placeholder="Введите ID пользователя"
               class="search-input"
-              @keyup.enter="searchBan"
+              @keyup.enter="handleEnter"
+              @click.stop
             >
-            <button @click="searchBan" class="search-button" :disabled="!searchUserId">
+            <button 
+              @click.stop="searchBan" 
+              class="search-button" 
+              :disabled="!searchUserId"
+            >
               Поиск
             </button>
           </div>
@@ -105,8 +110,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import axios from 'axios';
 
+const route = useRoute();
 const userInfo = ref({
   id: null,
   name: '',
@@ -134,11 +141,78 @@ const formatDate = (dateString) => {
   });
 };
 
+// Функция для скрытия клавиатуры
+const hideKeyboard = () => {
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+};
+
+// Обработчик нажатия Enter
+const handleEnter = (event) => {
+  event.preventDefault();
+  hideKeyboard();
+  searchBan();
+};
+
+const loadUserData = async () => {
+  try {
+    const webApp = window.Telegram?.WebApp;
+    if (!webApp) {
+      console.error('WebApp не доступен');
+      return;
+    }
+
+    const user = webApp.initDataUnsafe?.user;
+    const initData = webApp.initData;
+
+    if (!user || !initData) {
+      console.error('Данные пользователя не доступны');
+      return;
+    }
+
+    // Выполняем запросы параллельно
+    const [adminCheckResponse, banCheckResponse] = await Promise.all([
+      axios.get(`https://usfbase.ru/USFAPI/check_admin/${user.id}`, {
+        headers: { 'Authorization': initData }
+      }),
+      axios.get(`https://usfbase.ru/USFAPI/check_ban/${user.id}`, {
+        headers: { 'Authorization': initData }
+      })
+    ]);
+
+    if (adminCheckResponse.data.is_admin) {
+      webApp.showAlert('Используйте команду /admin для доступа к панели администратора');
+      setTimeout(() => webApp.close(), 1500);
+      return;
+    }
+
+    // Устанавливаем данные пользователя
+    userInfo.value = {
+      id: user.id,
+      name: user.first_name,
+      avatar: user.photo_url,
+      isBanned: banCheckResponse.data.is_banned
+    };
+
+    // Если пользователь забанен, сразу показываем информацию о бане
+    if (banCheckResponse.data.is_banned) {
+      searchResult.value = banCheckResponse.data;
+    }
+
+  } catch (error) {
+    console.error('Ошибка при инициализации:', error);
+  }
+};
+
 const searchBan = async () => {
   if (!searchUserId.value) return;
   
   try {
-    const response = await axios.get(`https://usfbase.ru/USFAPI/public/ban/${searchUserId.value}`);
+    const response = await axios.get(
+      `https://usfbase.ru/USFAPI/public/ban/${searchUserId.value}`,
+      { cache: true } // Включаем кэширование для повторных запросов
+    );
     searchResult.value = response.data;
   } catch (error) {
     console.error('Ошибка при поиске бана:', error);
@@ -146,39 +220,29 @@ const searchBan = async () => {
   }
 };
 
+// Добавляем debounce для поиска
+const debouncedSearch = (() => {
+  let timeout;
+  return (value) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => searchBan(value), 300);
+  };
+})();
+
 const openImage = (image) => {
   selectedImage.value = image;
 };
 
 onMounted(async () => {
-  try {
-    if (!window.Telegram?.WebApp) return;
-
+  // Инициализируем WebApp сразу
+  if (window.Telegram?.WebApp) {
     const webApp = window.Telegram.WebApp;
-    const user = webApp.initDataUnsafe?.user;
-    
-    if (!user) return;
-
-    const adminCheckResponse = await axios.get(`https://usfbase.ru/USFAPI/check_admin/${user.id}`);
-    if (adminCheckResponse.data.is_admin) {
-      window.location.href = '/admin';
-      return;
-    }
-
-    const banResponse = await axios.get(`https://usfbase.ru/USFAPI/check_ban/${user.id}`);
-    
-    userInfo.value = {
-      id: user.id,
-      name: user.first_name,
-      avatar: user.photo_url,
-      isBanned: banResponse.data.is_banned
-    };
-
-    webApp.expand();
     webApp.ready();
-  } catch (error) {
-    console.error('Ошибка при инициализации:', error);
+    webApp.expand();
   }
+
+  // Загружаем данные пользователя асинхронно
+  await loadUserData();
 });
 </script>
 
@@ -192,6 +256,9 @@ onMounted(async () => {
   background: #0F111A;
   color: #FFFFFF;
   font-family: 'JetBrains Mono', monospace;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .content {
@@ -230,6 +297,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   border: 2px solid rgba(255, 255, 255, 0.1);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .user-avatar {
@@ -312,6 +381,9 @@ onMounted(async () => {
   color: #FFFFFF;
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 16px; /* Оптимальный размер для мобильных устройств */
 }
 
 .search-input:focus {
@@ -331,6 +403,8 @@ onMounted(async () => {
   transition: all 0.2s ease;
   min-width: 80px;
   flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .search-button:hover {
@@ -420,6 +494,7 @@ onMounted(async () => {
   border-radius: 4px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  loading: lazy;
 }
 
 .ban-image:hover {
@@ -505,6 +580,24 @@ footer {
 
   .images-grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+}
+
+/* Предотвращаем зум на iOS при фокусе на input */
+@media screen and (-webkit-min-device-pixel-ratio: 0) { 
+  .search-input {
+    font-size: 16px;
+  }
+}
+
+/* Оптимизируем анимации */
+@media (prefers-reduced-motion: reduce) {
+  .search-results {
+    animation: none;
+  }
+  
+  .action-card:hover {
+    transform: none;
   }
 }
 </style>

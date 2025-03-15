@@ -266,10 +266,10 @@ const removeGroup = async (groupId) => {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   transition: all 0.3s ease;
 }
 
@@ -279,9 +279,9 @@ const removeGroup = async (groupId) => {
 }
 
 .group-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -307,31 +307,43 @@ const removeGroup = async (groupId) => {
 .group-info {
   flex: 1;
   min-width: 0;
+  margin-right: auto;
 }
 
 .group-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 4px;
-  white-space: nowrap;
+  font-size: 15px;
+  margin: 0 0 2px;
+}
+
+.group-username, .group-id {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .group-username {
   color: #3b82f6;
-  text-decoration: none;
-  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.group-username:hover {
+  color: #60a5fa;
 }
 
 .group-id {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
 }
 
 .group-stats {
-  text-align: right;
-  flex-shrink: 0;
+  margin: 0 12px;
 }
 
 .members-count {
@@ -341,14 +353,11 @@ const removeGroup = async (groupId) => {
 }
 
 .count {
-  font-size: 18px;
-  font-weight: 600;
-  color: #10b981;
+  font-size: 15px;
 }
 
 .label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
 }
 
 .loading-container {
@@ -408,12 +417,11 @@ const removeGroup = async (groupId) => {
 }
 
 .group-actions {
-  display: flex;
-  gap: 8px;
+  flex-shrink: 0;
 }
 
 .remove-button {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   border: none;
   border-radius: 8px;
@@ -421,20 +429,20 @@ const removeGroup = async (groupId) => {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.remove-button .icon {
-  font-size: 14px;
+  transition: all 0.3s ease;
 }
 
 .remove-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.remove-button .icon {
+  font-size: 14px;
 }
 
 .modal-overlay {
@@ -515,17 +523,30 @@ const removeGroup = async (groupId) => {
 }
 
 @media (max-width: 640px) {
-  .admin-container {
-    padding: 16px;
-  }
-  
   .group-card {
-    padding: 12px;
+    flex-wrap: wrap;
   }
-  
-  .group-avatar {
-    width: 48px;
-    height: 48px;
+
+  .group-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .group-stats {
+    margin: 8px 0;
+    width: 100%;
+  }
+
+  .members-count {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .group-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
   }
 }
 
@@ -552,5 +573,37 @@ const removeGroup = async (groupId) => {
   color: #FFFFFF;
   font-size: 14px;
   font-weight: 500;
+}
+
+.group-action-btn {
+    background: linear-gradient(135deg, #1E88E5 0%, #1565C0 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin: 4px;
+}
+
+.group-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.group-action-btn.delete {
+    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+}
+
+.group-action-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.group-action-btn.loading {
+    opacity: 0.7;
+    cursor: wait;
 }
 </style>

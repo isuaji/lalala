@@ -9,6 +9,7 @@ import BanList from '../components/BanList.vue';
 import AdminList from '../components/AdminList.vue';
 import LogsPage from '../components/LogsPage.vue';
 import GroupsList from '../components/GroupsList.vue'
+import DefaultUser from '@/components/DefaultUser.vue'
 
 const routes = [
   {
@@ -68,6 +69,16 @@ const routes = [
     path: '/admin/groups',
     name: 'groups',
     component: GroupsList
+  },
+  {
+    path: '/defaultuser',
+    name: 'defaultuser',
+    component: DefaultUser
+  },
+  {
+    path: '/user/:user_id',
+    name: 'user',
+    component: DefaultUser
   }
 ];
 

@@ -94,6 +94,17 @@ const handleKeyDown = (event) => {
         </div>
 
         <div class="form-group">
+          <label>Количество предупреждений</label>
+          <input 
+            type="number" 
+            v-model="warnForm.count"
+            min="1" 
+            max="3"
+            required
+          >
+        </div>
+
+        <div class="form-group">
           <label>Причина предупреждения</label>
           <textarea 
             v-model="warnForm.reason"
@@ -101,6 +112,16 @@ const handleKeyDown = (event) => {
             required
             @keydown="handleKeyDown"
           ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Доказательства</label>
+          <input 
+            type="text" 
+            v-model="warnForm.proof"
+            placeholder="Ссылки на доказательства"
+            required
+          >
         </div>
 
         <div v-if="error" class="error-message">

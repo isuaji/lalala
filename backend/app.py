@@ -92,7 +92,7 @@ def init_db():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS groups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                group_id INTEGER NOT NULL UNIQUE,
+                group_id BIGINT NOT NULL UNIQUE,
                 title TEXT NOT NULL,
                 username TEXT,
                 added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -105,8 +105,8 @@ def init_db():
 app = FastAPI(title="Backend API")
 
 origins = [
-    "https://gilded-naiad-f921ca.netlify.app",
-    "http://gilded-naiad-f921ca.netlify.app",
+    "https://thunderous-mermaid-3a3523.netlify.app",
+    "http://thunderous-mermaid-3a3523.netlify.app",
     "https://t.me",
     "http://localhost:5173",
     "http://localhost:3000",
@@ -124,7 +124,7 @@ app.add_middleware(
     expose_headers=["*"]
 )
 BOT_TOKEN = '7892645481:AAESpSKDbi8yOOeuxSUOe1WkELhiZaWvieI'
-WEBAPP_URL = "https://gilded-naiad-f921ca.netlify.app"
+WEBAPP_URL = "https://thunderous-mermaid-3a3523.netlify.app"
 bot = Bot(token=BOT_TOKEN, parse_mode='HTML')
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
@@ -461,7 +461,6 @@ async def banuser_with_images(
 @app.get("/USFAPI/bans")
 async def get_bans(authorization: str = Header(None), search_id: Optional[str] = None):
     try:
-        # Проверка авторизации
         admin_id = verify_webapp_and_admin(authorization)
         logging.info(f"Запрос списка банов от админа {admin_id}")
 
@@ -494,19 +493,27 @@ async def get_bans(authorization: str = Header(None), search_id: Optional[str] =
                 
             bans = cursor.fetchall()
             
-            return [{
-                "id": ban[0],
-                "user_id": ban[1],
-                "admin_id": ban[2],
-                "reason": ban[3],
-                "proofs": ban[4],
-                "images": json.loads(ban[5]) if ban[5] else [],
-                "ban_date": ban[6]
-            } for ban in bans]
+            formatted_bans = []
+            for ban in bans:
+                try:
+                    images = json.loads(ban[5]) if ban[5] else []
+                except json.JSONDecodeError:
+                    images = []
+                    logging.error(f"Ошибка при парсинге изображений для бана {ban[0]}")
+                
+                formatted_bans.append({
+                    "id": ban[0],
+                    "user_id": ban[1],
+                    "admin_id": ban[2],
+                    "reason": ban[3],
+                    "proofs": ban[4],
+                    "images": images,
+                    "ban_date": ban[6]
+                })
+            
+            return formatted_bans
         finally:
             conn.close()
-    except HTTPException as he:
-        raise he
     except Exception as e:
         logging.error(f"Ошибка при получении списка банов: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -527,7 +534,7 @@ async def send_welcome(message: types.Message):
             text="Открыть меню USF",
             web_app=types.WebAppInfo(url=f"{WEBAPP_URL}/defaultuser")
         ))
-        await message.reply("<b>С помощью кнопки ниже вы можете открыть меню USF:</b>", 
+        await message.reply("<b>С помощью кнопки ниже вы можете открыть меню ???:</b>", 
             reply_markup=keyboard)
 
 @dp.message_handler(commands=['admin'])
@@ -1423,13 +1430,25 @@ async def get_groups(authorization: str = Header(None)):
 @app.post("/USFAPI/groups/add")
 async def add_group(
     request: Request,
-    group_id: int = Form(...),
+    group_id: str = Form(...),
     authorization: str = Header(None)
 ):
     try:
         admin_id = verify_webapp_and_admin(authorization)
         
-        # Проверяем права админа
+        # Преобразуем group_id в правильный формат
+        try:
+            if group_id.startswith('-100'):
+                clean_group_id = int(group_id)
+            elif group_id.startswith('-'):
+                clean_group_id = int('-100' + group_id[1:])
+            else:
+                clean_group_id = int('-100' + group_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Неверный формат ID группы")
+        
+        logging.info(f"Пытаемся добавить группу с ID: {clean_group_id}")
+        
         conn = get_db()
         try:
             cursor = conn.cursor()
@@ -1438,35 +1457,36 @@ async def add_group(
             if not admin_data or admin_data[0] < 90:
                 raise HTTPException(status_code=403, detail="Недостаточно прав для управления группами")
             
-            # Проверяем, является ли бот администратором группы
             try:
-                chat = await bot.get_chat(group_id)
-                bot_member = await bot.get_chat_member(group_id, (await bot.get_me()).id)
+                chat = await bot.get_chat(clean_group_id)
                 
-                if bot_member.status not in ['administrator', 'creator']:
-                    raise HTTPException(status_code=400, detail="Бот должен быть администратором группы")
+                # Проверяем, не существует ли уже такая группа
+                cursor.execute("SELECT id FROM groups WHERE group_id = ?", (clean_group_id,))
+                if cursor.fetchone():
+                    raise HTTPException(status_code=400, detail="Эта группа уже добавлена")
                 
                 # Добавляем группу в БД
                 cursor.execute(
                     "INSERT INTO groups (group_id, title, username) VALUES (?, ?, ?)",
-                    (group_id, chat.title, chat.username)
+                    (clean_group_id, chat.title, chat.username)
                 )
                 conn.commit()
                 
                 await log_admin_action(
                     admin_id=admin_id,
                     action_type="group_add",
-                    target_id=group_id,
+                    target_id=clean_group_id,
                     details=f"Добавлена группа: {chat.title}"
                 )
                 
                 return {
                     "status": "success",
-                    "message": f"Группа {chat.title} успешно добавлена"
+                    "message": f"Группа {chat.title} успешно добавлена. Внимание: убедитесь, что бот является администратором для корректной работы всех функций."
                 }
                 
             except Exception as e:
-                raise HTTPException(status_code=400, detail="Не удалось получить информацию о группе. Проверьте ID и права бота")
+                logging.error(f"Ошибка при добавлении группы: {e}")
+                raise HTTPException(status_code=400, detail="Не удалось получить информацию о группе. Проверьте ID группы")
                 
         finally:
             conn.close()
